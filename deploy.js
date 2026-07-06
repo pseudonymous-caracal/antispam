@@ -7,7 +7,7 @@
 const fs = require('fs');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
-const { clientId, token } = require('./config.json');
+const { clientId, token } = require('./config.js');
 
 /**
  * Deploys commands to a guild.

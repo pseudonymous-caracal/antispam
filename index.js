@@ -1,6 +1,9 @@
 const fs = require('fs');
 const { Client, Collection, GatewayIntentBits, MessageFlags } = require('discord.js');
-const { token } = require('./config.json');
+const { token } = require('./config.js');
+
+// this bot write ephemeral messages to the DATA directory, so we need to make sure it exists before the bot starts up
+if (!fs.existsSync('./DATA')) fs.mkdirSync('./DATA');
 
 const client = new Client({ 
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -49,3 +52,7 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(token);
+
+// keep bot alive for hosting platforms with health checks
+const http = require('http');
+http.createServer((_, res) => res.end('Bot is running')).listen(process.env.PORT || 3000);
