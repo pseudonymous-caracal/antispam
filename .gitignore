@@ -2,3 +2,4 @@ config.json
 testing.js
 DATA/*
 node_modules/*
+.env

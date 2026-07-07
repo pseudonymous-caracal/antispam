@@ -9,7 +9,7 @@ const { KeyvSqlite } = require('@keyv/sqlite');
  */
 async function execute (message) {
     if (message.author.bot || message.author.system) return; // Ignore bot messages.
-    if (message.content === "") return; //  Ignore empty messages.
+    // if (message.content === "") return; //  No longer ignore empty messages, attachments are tracked
 
     // Retrieve settings data
     const dbFile = new KeyvSqlite(`sqlite://DATA/${message.guild.id}-settings.sqlite`);
@@ -47,9 +47,9 @@ async function execute (message) {
         unbanCrossPoster(crossPoster, guild);
     }
 
-    // Currently only message content is what's tracked. 
-    // If the user cross-posts by uploading the same file to several channels,
-    // this script wont catch them.
+    // Currently only message content and attachments are both tracked.
+    // Attachment tracking works by ensuring all attachments are the same size across all messages.
+    // If content differs but attachments are the same, the bot won't flag it.
     return;
 }
 
@@ -67,6 +67,7 @@ async function appendToDB (message, expiration) {
     DataObj["author"] = message.author.id;
     DataObj["channel"] = message.channel.id;
     DataObj["content"] = message.content;
+    DataObj["attachments"] = message.attachments;
     DataObj["db_id"] = now;
     const set = await keyv.set(now, DataObj, expiration * 1000);
     return set;
@@ -108,7 +109,15 @@ async function countCrossPosts (data) {
         for (const otherKey in keychain) {
             const otherValue = data[otherKey];
             if (value.content === otherValue.content && value.author === otherValue.author && value.channel !== otherValue.channel) {
-                crossPosts.push(otherKey);
+                if (value.attachments.length > 0 && otherValue.attachments.length > 0) {
+                    const valueSizes = getAllAttachmentSizes(value);
+                    const otherSizes = getAllAttachmentSizes(otherValue);
+                    if (valueSizes === otherSizes) {
+                        crossPosts.push(otherKey);
+                    }
+                } else {
+                    crossPosts.push(otherKey);
+                }
             } else {
                 // Debugging
                 // console.log(`${otherKey} is not a cross-post.`);
@@ -168,6 +177,19 @@ async function unbanCrossPoster (crossPosterId, guildObj) {
     guildObj.members.unban(crossPosterId, { reason: "Immediate unban is enabled." } ).catch(err => {
         console.log(err);
     });
+}
+
+/**
+ * Concatenate each attachment's size into a single string.
+ * @param {*} msg - Message object
+ * @returns concatenated string
+ */
+function getAllAttachmentSizes (msg) {
+    let str = "";
+    for (const attachment of msg.attachments) {
+        str = str+`${attachment.size}`;
+    }
+    return str;
 }
 
 module.exports = { name: Events.MessageCreate, once: false, execute }
